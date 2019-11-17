@@ -28,9 +28,7 @@ import static androidx.lifecycle.Lifecycle.State.STARTED;
  * Created by dalgarins on 03/04/18.
  */
 
-public class LocationComponent implements OnLastLocationListener
-        , OnLocationChangeListener
-        , OnLocationRequest
+public class LocationComponent implements OnLocationListener
         , OnObserveState
         , LifecycleObserver {
 
@@ -67,8 +65,7 @@ public class LocationComponent implements OnLastLocationListener
     }
 
     @Override
-    public OnLastLocationListener onLastLocation(@NonNull CallbackLocation callback) {
-
+    public OnLocationListener lastLocation(@NonNull CallbackLocation callback) {
         if (UtilPermission.checkLocationPermission(context)) {
             mFusedLocationClient.getLastLocation()
                     .addOnCompleteListener(task -> {
@@ -83,13 +80,7 @@ public class LocationComponent implements OnLastLocationListener
     }
 
     @Override
-    public OnLocationChangeListener whenLocationChange() {
-        return this;
-    }
-
-    @Override
-    public OnLocationChangeListener onLocationChanged(@NonNull CallbackLocation callback) {
-
+    public OnLocationListener whenLocationChange(@NonNull CallbackLocation callback) {
         this.mLocationCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
@@ -97,11 +88,6 @@ public class LocationComponent implements OnLastLocationListener
                 callback.onLocationResult(locationResult.getLastLocation());
             }
         };
-        return this;
-    }
-
-    @Override
-    public OnLocationRequest whenRequestLocation() {
         return this;
     }
 
@@ -121,11 +107,8 @@ public class LocationComponent implements OnLastLocationListener
         Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
 
         if (locationSettings != null) {
-            task.addOnSuccessListener(locationSettingsResponse ->
-                    locationSettings.addOnSuccessListener(locationSettingsResponse));
-
-            task.addOnFailureListener(exception ->
-                    locationSettings.addOnFailureListener(exception));
+            task.addOnSuccessListener(locationSettings::addOnSuccessListener);
+            task.addOnFailureListener(locationSettings::addOnFailureListener);
         }
     }
 
@@ -145,7 +128,6 @@ public class LocationComponent implements OnLastLocationListener
         }
     }
 
-    @Override
     public void requestLocationUpdates() {
         if (mLocationCallback != null
                 && UtilPermission.checkLocationPermission(context)) {
@@ -154,7 +136,6 @@ public class LocationComponent implements OnLastLocationListener
         }
     }
 
-    @Override
     public void removeLocationUpdates() {
         if (UtilPermission.checkLocationPermission(context)) {
             mFusedLocationClient.removeLocationUpdates(mLocationCallback);
