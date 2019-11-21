@@ -174,12 +174,12 @@ public class LocationComponent implements OnLocationListener
 
         public Builder locationRequest(long requestIntervalUpdate,
                                        long requestFastestIntervalUpdate,
-                                       int requestPriority) {
+                                       LocationAccuracy requestPriority) {
 
             locationRequest = LocationRequest.create();
             locationRequest.setInterval(requestIntervalUpdate);
             locationRequest.setFastestInterval(requestFastestIntervalUpdate);
-            locationRequest.setPriority(requestPriority);
+            locationRequest.setPriority(requestPriority.getAccuracy());
             return this;
         }
 
