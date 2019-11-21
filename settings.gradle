@@ -1,2 +1,2 @@
-include ':gps-component'
+include ':gps-component', ':sample'
 rootProject.name='Location Component'
