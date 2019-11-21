@@ -2,7 +2,10 @@ package co.anbora.gps.sample;
 
 import androidx.fragment.app.FragmentActivity;
 
+import android.content.Context;
+import android.location.Location;
 import android.os.Bundle;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -11,15 +14,19 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import co.anbora.component.location.CallbackLocation;
 import co.anbora.component.location.LocationAccuracy;
 import co.anbora.component.location.LocationComponent;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
-    private LocationComponent.Builder gpsComponent;
+    private LocationComponent gpsComponent;
 
     private final int FIVE_SECONDS = 5000;
+
+    private CallbackLocation callbackLocation = new LastLocationCallback();
+    private CallbackLocation updateLocation = new LocationUpdateCallback();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,7 +38,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mapFragment.getMapAsync(this);
 
         gpsComponent = new LocationComponent.Builder()
-                .locationRequest(FIVE_SECONDS, FIVE_SECONDS, LocationAccuracy.HIGH);
+                .locationRequest(FIVE_SECONDS, FIVE_SECONDS, LocationAccuracy.HIGH)
+                .build(this);
+
+        gpsComponent
+                .lastLocation(callbackLocation)
+                .whenLocationChange(updateLocation)
+                .attachState()
+                .observe(getLifecycle());
     }
 
 
@@ -47,10 +61,41 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
     }
+
+    private class LastLocationCallback implements CallbackLocation {
+
+        @Override
+        public void onLocationResult(Location location) {
+            showMarkerInMap(location);
+        }
+
+        @Override
+        public void onLocationError() {
+
+        }
+
+        private void showMarkerInMap(Location location) {
+            if (mMap != null) {
+                // Add a marker in Sydney and move the camera
+                LatLng sydney = new LatLng(location.getLatitude(), location.getLongitude());
+                mMap.addMarker(new MarkerOptions().position(sydney).title("Last Location"));
+                mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
+            }
+        }
+    }
+
+    public class LocationUpdateCallback implements CallbackLocation {
+
+        @Override
+        public void onLocationResult(Location location) {
+            Toast.makeText(getApplicationContext(), "Updated Location", Toast.LENGTH_LONG).show();
+        }
+
+        @Override
+        public void onLocationError() {
+
+        }
+    }
+
 }
