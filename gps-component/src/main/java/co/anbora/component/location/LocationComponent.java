@@ -2,6 +2,7 @@ package co.anbora.component.location;
 
 
 import android.content.Context;
+import android.location.Location;
 import android.os.Looper;
 
 import androidx.annotation.NonNull;
@@ -17,6 +18,7 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.LocationSettingsRequest;
 import com.google.android.gms.location.LocationSettingsResponse;
 import com.google.android.gms.location.SettingsClient;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
 import static androidx.lifecycle.Lifecycle.State.STARTED;
@@ -37,7 +39,8 @@ public class LocationComponent implements OnLocationListener
     private Context context;
     private LocationSettings locationSettings;
 
-    private LocationCallback mLocationCallback;
+    private OnCompleteListener<Location> lastLocationCallback;
+    private LocationCallback locationUpdateCallback;
 
     /**
      * Contains parameters used by {@link com.google.android.gms.location.FusedLocationProviderApi}.
@@ -66,25 +69,21 @@ public class LocationComponent implements OnLocationListener
 
     @Override
     public OnLocationListener lastLocation(@NonNull CallbackLocation callback) {
-        if (UtilPermission.checkLocationPermission(context)) {
-            mFusedLocationClient.getLastLocation()
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful() && task.getResult() != null) {
-                            callback.onLocationResult(task.getResult());
-                        } else {
-                            callback.onLocationError();
-                        }
-                    });
-        }
+        this.lastLocationCallback = task -> {
+            if (task.isSuccessful() && task.getResult() != null) {
+                callback.onLocationResult(task.getResult());
+            } else {
+                callback.onLocationError();
+            }
+        };
         return this;
     }
 
     @Override
     public OnLocationListener whenLocationChange(@NonNull CallbackLocation callback) {
-        this.mLocationCallback = new LocationCallback() {
+        this.locationUpdateCallback = new LocationCallback() {
             @Override
             public void onLocationResult(LocationResult locationResult) {
-                super.onLocationResult(locationResult);
                 callback.onLocationResult(locationResult.getLastLocation());
             }
         };
@@ -123,22 +122,35 @@ public class LocationComponent implements OnLocationListener
     @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     void stop() {
 
-        if (mLocationCallback != null) {
+        if (locationUpdateCallback != null) {
             this.removeLocationUpdates();
         }
     }
 
     public void requestLocationUpdates() {
-        if (mLocationCallback != null
+        addLocationUpdateCallback();
+        addLastLocationCallback();
+    }
+
+    private void addLocationUpdateCallback() {
+        if (locationUpdateCallback != null
                 && UtilPermission.checkLocationPermission(context)) {
             mFusedLocationClient.requestLocationUpdates(mLocationRequest,
-                    mLocationCallback, Looper.myLooper());
+                    locationUpdateCallback, Looper.myLooper());
+        }
+    }
+
+    private void addLastLocationCallback() {
+        if (lastLocationCallback != null
+                && UtilPermission.checkLocationPermission(context)) {
+            mFusedLocationClient.getLastLocation()
+                    .addOnCompleteListener(this.lastLocationCallback);
         }
     }
 
     public void removeLocationUpdates() {
         if (UtilPermission.checkLocationPermission(context)) {
-            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
+            mFusedLocationClient.removeLocationUpdates(locationUpdateCallback);
         }
     }
 
